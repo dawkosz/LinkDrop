@@ -1,0 +1,15 @@
+bin/
+obj/
+.tools/
+tools/
+dist/
+artifacts/
+*.lnk
+*.log
+*.zip
+*.pdb
+*.user
+*.suo
+state.json
+state.json.bak
+.vs/

@@ -1,0 +1,44 @@
+name: Windows build and local media tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: 9.0.x
+      - name: Download verified tools for tests
+        shell: powershell
+        run: .\scripts\Setup.ps1
+      - name: Build app with local test tools
+        shell: powershell
+        run: .\scripts\Build.ps1 -IncludeTools
+      - name: Run local integration tests
+        shell: powershell
+        run: |
+          $target = Join-Path $pwd 'artifacts\self-test'
+          $p = Start-Process .\dist\LinkDrop\LinkDrop.exe -ArgumentList '--self-test', $target -PassThru
+          if (!$p.WaitForExit(240000)) { $p.Kill(); throw 'Integration tests timed out.' }
+          Get-Content (Join-Path $target 'results.txt')
+          if ($p.ExitCode -ne 0) { throw "Tests failed: $($p.ExitCode)" }
+      - name: Package app without external engines
+        shell: powershell
+        run: .\scripts\Package.ps1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: LinkDrop-windows-x64
+          path: |
+            artifacts/*.zip
+            artifacts/SHA256SUMS.txt
+          if-no-files-found: error
